@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moon Birthday Mystery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Space+Mono:wght@400;700&family=Noto+Sans+Thai:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --ink: #e2d9f3;
+  --muted: #a78bfa99;
+  --accent: #7c3aed;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  min-height: 100%;
+  background: #060410;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Noto Sans Thai', 'Crimson Pro', serif;
+}
+
+.vn {
+  width: 100%;
+  max-width: 720px;
+  min-height: 100vh;
+  height: auto;
+  position: relative;
+  overflow: hidden;
+  background: #060410;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ─── CANVAS LAYERS ─── */
+canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+#bg-canvas { z-index: 0; }
+#fx-canvas { z-index: 1; }
+#confetti-canvas { z-index: 10; }
+
+/* ─── SCENE LAYER ─── */
+.scene-layer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 1.5rem 1rem 1rem;
+}
+
+/* ─── ART ─── */
+.vn-art {
+  font-size: clamp(48px, 10vw, 72px);
+  line-height: 1;
+  filter: drop-shadow(0 0 24px var(--glow, #7c3aed88));
+  transition: all 0.7s ease;
+  margin-bottom: 1.25rem;
+  animation: floatArt 4s ease-in-out infinite;
+}
+@keyframes floatArt {
+  0%,100%{ transform: translateY(0) }
+  50%{ transform: translateY(-8px) }
+}
+
+/* ─── LOCATION TAG ─── */
+.vn-location {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--loc-color, #6d28d9);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  opacity: 0.8;
+  transition: color 0.8s;
+}
+
+/* ─── TEXT (no border) ─── */
+.vn-textbox {
+  width: 100%;
+  max-width: 580px;
+  text-align: center;
+  padding: 0 0.5rem;
+}
+.vn-speaker {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--spk-color, #a78bfa);
+  margin-bottom: 0.5rem;
+  transition: color 0.8s;
+}
+.vn-text {
+  color: #e2d9f3;
+  font-size: clamp(14px, 3.5vw, 16.5px);
+  line-height: 1.9;
+  min-height: 48px;
+  text-shadow: 0 2px 20px #000a, 0 0 40px #00000088;
+  font-weight: 400;
+}
+.vn-cursor {
+  display: inline-block;
+  width: 7px; height: 14px;
+  background: var(--accent);
+  animation: blink 0.9s infinite;
+  vertical-align: -2px;
+  margin-left: 2px;
+  border-radius: 1px;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ─── CHOICES ─── */
+.vn-choices {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto 9rem;
+  padding: 0.75rem 1rem 0;
+}
+.vn-choice {
+  background: rgba(10,6,24,0.72);
+  border: none;
+  border-bottom: 1px solid rgba(139,92,246,0.25);
+  padding: 0.65rem 1.2rem;
+  color: #c4b5fd;
+  font-family: 'Noto Sans Thai', serif;
+  font-size: clamp(13px, 3.5vw, 14.5px);
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.18s;
+  letter-spacing: 0.3px;
+  min-height: 44px; /* touch-friendly */
+}
+.vn-choice:hover, .vn-choice:active {
+  background: rgba(109,40,217,0.22);
+  color: #ede9fe;
+  padding-left: 1.6rem;
+}
+.vn-choice-icon { font-size: 14px; opacity: 0.7; flex-shrink: 0; }
+
+/* ─── PROGRESS ─── */
+.vn-progress {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  padding: 0.6rem 0 0;
+}
+.vn-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: rgba(109,40,217,0.25);
+  transition: background 0.4s;
+}
+.vn-dot.done { background: rgba(109,40,217,0.55); }
+.vn-dot.active { background: #a78bfa; box-shadow: 0 0 6px #7c3aed; }
+
+/* ─── FLICKER EFFECT ─── */
+.vn-art.flicker {
+  animation: floatArt 4s ease-in-out infinite, glitchFlicker 0.15s 3;
+}
+@keyframes glitchFlicker {
+  0%{opacity:1}25%{opacity:0.2}50%{opacity:1}75%{opacity:0.4}100%{opacity:1}
+}
+
+/* ─── ENDING ─── */
+.celebrate {
+  display: none;
+  position: relative;
+  z-index: 8;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 2rem 1.5rem;
+  background: radial-gradient(ellipse at center, rgba(60,10,100,0.7) 0%, transparent 80%);
+}
+.celebrate.show { display: flex; }
+.c-tag {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: #6d28d9;
+  letter-spacing: 4px;
+}
+.c-name {
+  font-size: clamp(32px, 8vw, 48px);
+  font-weight: 600;
+  color: #ede9fe;
+  font-family: 'Crimson Pro', serif;
+  text-shadow: 0 0 60px #7c3aed99;
+  line-height: 1.1;
+  margin: 0.25rem 0;
+}
+.c-msg {
+  color: #c4b5fd;
+  font-size: 15px;
+  line-height: 2;
+  max-width: 400px;
+  text-shadow: 0 2px 12px #000a;
+}
+.replay-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(139,92,246,0.4);
+  color: #a78bfa;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  letter-spacing: 2px;
+  margin-top: 0.75rem;
+  transition: color 0.2s;
+}
+.replay-btn:hover { color: #ede9fe; }
+
+.fade-in { animation: fadeIn 0.55s ease forwards; }
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── SCANLINE OVERLAY ─── */
+.scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.06) 3px,
+    rgba(0,0,0,0.06) 4px
+  );
+  opacity: 0;
+  transition: opacity 1s;
+}
+.scanlines.horror { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="vn" id="vn">
+  <canvas id="bg-canvas"></canvas>
+  <canvas id="fx-canvas"></canvas>
+  <canvas id="confetti-canvas"></canvas>
+  <div class="scanlines" id="scanlines"></div>
+
+  <div class="vn-progress" id="prog"></div>
+
+  <div class="scene-layer" id="scene">
+    <div class="vn-art" id="art">🕯️</div>
+    <div class="vn-location" id="loc">??? — เที่ยงคืน</div>
+    <div class="vn-textbox">
+      <div class="vn-speaker" id="spk">SYSTEM</div>
+      <div class="vn-text" id="txt"></div>
+    </div>
+  </div>
+
+  <div class="vn-choices" id="choices"></div>
+
+  <div class="celebrate" id="cel">
+    <div class="c-tag">— case closed —</div>
+    <div class="c-name">Happy Birthday,<br>Moon.</div>
+    <div class="c-msg">
+      ความลึกลับทั้งหมดนี้มีคำตอบเดียว<br>
+      คือวันนี้เป็นวันพิเศษของคุณ 🌙<br><br>
+      รู้จักกันได้ไม่นาน แต่ก็รู้สึกได้ว่า<br>
+      คุณเป็นคนที่น่าจดจำมากๆ คนนึง<br><br>
+      ขอให้ปีนี้เต็มไปด้วยเรื่องราวดีๆ<br>
+      ทุก stream ปัง ทุกวันคืนสว่าง
+    </div>
+    <div class="c-tag">— Moon — 2026 —</div>
+    <button class="replay-btn" onclick="init()">▶ play again</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// BACKGROUND SYSTEM
+// ═══════════════════════════════════════════
+
+const BG = {
+  outdoor_night: {
+    type: 'outdoor',
+    sky: ['#060410','#0d0820','#060410'],
+    glow: '#7c3aed88',
+    locColor: '#6d28d9',
+    spkColor: '#a78bfa',
+    scanlines: false,
+  },
+  indoor_creepy: {
+    type: 'indoor',
+    sky: ['#100608','#1a0808','#0a0404'],
+    glow: '#b91c1c88',
+    locColor: '#9f1239',
+    spkColor: '#fca5a5',
+    scanlines: true,
+  },
+  indoor_warm: {
+    type: 'indoor_warm',
+    sky: ['#120d06','#1c1208','#0c0a04'],
+    glow: '#d9770688',
+    locColor: '#a16207',
+    spkColor: '#fcd34d',
+    scanlines: false,
+  },
+  underground: {
+    type: 'underground',
+    sky: ['#04060e','#060b1a','#020408'],
+    glow: '#1d4ed888',
+    locColor: '#1e40af',
+    spkColor: '#93c5fd',
+    scanlines: true,
+  },
+  void: {
+    type: 'void',
+    sky: ['#000000','#04000c','#000000'],
+    glow: '#4c1d9588',
+    locColor: '#4c1d95',
+    spkColor: '#c4b5fd',
+    scanlines: true,
+  },
+};
+
+let bgState = {
+  currentType: 'outdoor_night',
+  stars: [],
+  indoorParticles: [],
+  animFrame: null,
+  tick: 0,
+};
+
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+const fxCanvas = document.getElementById('fx-canvas');
+const fxCtx = fxCanvas.getContext('2d');
+
+function resizeCanvases() {
+  const vn = document.getElementById('vn');
+  const W = vn.offsetWidth;
+  const H = vn.offsetHeight || window.innerHeight;
+  [bgCanvas, fxCanvas, document.getElementById('confetti-canvas')].forEach(c => {
+    c.width = W;
+    c.height = H;
+  });
+}
+
+function initStars(count = 180) {
+  bgState.stars = Array.from({length: count}, () => ({
+    x: Math.random(),
+    y: Math.random() * 0.85,
+    size: 0.5 + Math.random() * 1.8,
+    brightness: 0.3 + Math.random() * 0.7,
+    twinkleSpeed: 0.015 + Math.random() * 0.04,
+    twinkleOffset: Math.random() * Math.PI * 2,
+    shootChance: Math.random(),
+  }));
+}
+
+function initIndoorParticles(type) {
+  const count = type === 'indoor_creepy' ? 30 : 15;
+  bgState.indoorParticles = Array.from({length: count}, () => ({
+    x: Math.random(),
+    y: Math.random(),
+    vx: (Math.random() - 0.5) * 0.001,
+    vy: -0.0005 - Math.random() * 0.001,
+    size: 1 + Math.random() * 2,
+    opacity: 0.1 + Math.random() * 0.3,
+    color: type === 'indoor_creepy' ? `hsl(${340 + Math.random()*20}, 70%, 40%)` : `hsl(${30 + Math.random()*20}, 80%, 60%)`,
+  }));
+}
+
+function drawBackground(preset) {
+  const W = bgCanvas.width, H = bgCanvas.height;
+  const cfg = BG[preset] || BG.outdoor_night;
+  const t = bgState.tick;
+
+  // Sky gradient
+  const grad = bgCtx.createLinearGradient(0, 0, 0, H);
+  cfg.sky.forEach((c, i) => grad.addColorStop(i / (cfg.sky.length - 1), c));
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(0, 0, W, H);
+
+  if (cfg.type === 'outdoor') {
+    // Stars
+    bgState.stars.forEach(s => {
+      const twinkle = s.brightness * (0.6 + 0.4 * Math.sin(t * s.twinkleSpeed + s.twinkleOffset));
+      bgCtx.beginPath();
+      bgCtx.arc(s.x * W, s.y * H, s.size, 0, Math.PI * 2);
+      bgCtx.fillStyle = `rgba(220,210,255,${twinkle})`;
+      bgCtx.fill();
+      // Occasional cross sparkle on larger stars
+      if (s.size > 1.5) {
+        bgCtx.strokeStyle = `rgba(220,210,255,${twinkle * 0.4})`;
+        bgCtx.lineWidth = 0.5;
+        bgCtx.beginPath();
+        bgCtx.moveTo(s.x*W - s.size*2.5, s.y*H);
+        bgCtx.lineTo(s.x*W + s.size*2.5, s.y*H);
+        bgCtx.moveTo(s.x*W, s.y*H - s.size*2.5);
+        bgCtx.lineTo(s.x*W, s.y*H + s.size*2.5);
+        bgCtx.stroke();
+      }
+    });
+
+    // Moon glow
+    const moonX = W * 0.78, moonY = H * 0.18;
+    const moonGlow = bgCtx.createRadialGradient(moonX, moonY, 2, moonX, moonY, 80);
+    moonGlow.addColorStop(0, 'rgba(200,180,255,0.22)');
+    moonGlow.addColorStop(1, 'rgba(100,60,200,0)');
+    bgCtx.fillStyle = moonGlow;
+    bgCtx.fillRect(0, 0, W, H);
+
+    // Distant forest silhouette
+    bgCtx.fillStyle = 'rgba(4,2,14,0.9)';
+    bgCtx.beginPath();
+    bgCtx.moveTo(0, H);
+    for (let x = 0; x <= W; x += 28) {
+      const h = 60 + 35 * Math.sin(x * 0.05 + 1) + 20 * Math.sin(x * 0.12) + 10 * Math.sin(x * 0.23 + 2);
+      bgCtx.lineTo(x, H - h);
+    }
+    bgCtx.lineTo(W, H);
+    bgCtx.closePath();
+    bgCtx.fill();
+
+  } else if (cfg.type === 'indoor') {
+    // Creepy indoor — flickering red vignette
+    const vignette = bgCtx.createRadialGradient(W/2, H/2, H*0.25, W/2, H/2, H*0.85);
+    const flicker = 0.35 + 0.1 * Math.sin(t * 0.3 + Math.sin(t * 1.1));
+    vignette.addColorStop(0, `rgba(80,8,8,0)`);
+    vignette.addColorStop(1, `rgba(30,2,2,${flicker})`);
+    bgCtx.fillStyle = vignette;
+    bgCtx.fillRect(0, 0, W, H);
+
+    // Wallpaper lines
+    bgCtx.strokeStyle = 'rgba(120,20,20,0.07)';
+    bgCtx.lineWidth = 1;
+    for (let y = 0; y < H; y += 32) {
+      bgCtx.beginPath();
+      bgCtx.moveTo(0, y);
+      bgCtx.lineTo(W, y);
+      bgCtx.stroke();
+    }
+
+    // Floating dust motes
+    bgState.indoorParticles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
+      bgCtx.beginPath();
+      bgCtx.arc(p.x * W, p.y * H, p.size, 0, Math.PI * 2);
+      bgCtx.fillStyle = p.color.replace(')', `,${p.opacity})`).replace('hsl', 'hsla');
+      bgCtx.fill();
+    });
+
+  } else if (cfg.type === 'indoor_warm') {
+    // Warm candlelit room
+    const flicker = 0.3 + 0.08 * Math.sin(t * 0.5) + 0.04 * Math.sin(t * 1.7);
+    const warmGlow = bgCtx.createRadialGradient(W/2, H*0.6, 10, W/2, H*0.6, H*0.7);
+    warmGlow.addColorStop(0, `rgba(220,100,10,${flicker})`);
+    warmGlow.addColorStop(0.4, `rgba(120,40,5,0.12)`);
+    warmGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    bgCtx.fillStyle = warmGlow;
+    bgCtx.fillRect(0, 0, W, H);
+
+    // Floating particles (dust/embers)
+    bgState.indoorParticles.forEach(p => {
+      p.x += p.vx + 0.0003 * Math.sin(t * 0.02 + p.y * 5);
+      p.y += p.vy;
+      if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
+      bgCtx.beginPath();
+      bgCtx.arc(p.x * W, p.y * H, p.size * 0.8, 0, Math.PI * 2);
+      bgCtx.fillStyle = `rgba(255,180,60,${p.opacity * 0.6})`;
+      bgCtx.fill();
+    });
+
+  } else if (cfg.type === 'underground') {
+    // Underground / catacombs
+    const vignette = bgCtx.createRadialGradient(W/2, H/2, 60, W/2, H/2, H);
+    vignette.addColorStop(0, 'rgba(5,15,40,0)');
+    vignette.addColorStop(1, 'rgba(0,2,8,0.8)');
+    bgCtx.fillStyle = vignette;
+    bgCtx.fillRect(0, 0, W, H);
+
+    // Stone texture lines
+    bgCtx.strokeStyle = 'rgba(20,40,80,0.12)';
+    bgCtx.lineWidth = 1;
+    [[0,120,W,120],[0,240,W,240],[0,360,W,360],[160,0,160,H],[320,0,320,H],[480,0,480,H]].forEach(([x1,y1,x2,y2]) => {
+      bgCtx.beginPath(); bgCtx.moveTo(x1,y1); bgCtx.lineTo(x2,y2); bgCtx.stroke();
+    });
+
+    // Blue bioluminescent glow dots
+    bgState.stars.slice(0, 40).forEach(s => {
+      const twinkle = s.brightness * (0.3 + 0.3 * Math.sin(t * s.twinkleSpeed * 0.5 + s.twinkleOffset));
+      bgCtx.beginPath();
+      bgCtx.arc(s.x * W, s.y * H, s.size * 0.6, 0, Math.PI * 2);
+      bgCtx.fillStyle = `rgba(100,160,255,${twinkle * 0.5})`;
+      bgCtx.fill();
+    });
+
+  } else if (cfg.type === 'void') {
+    // Pure void — minimal, unsettling
+    const pulse = 0.06 + 0.04 * Math.sin(t * 0.04);
+    const voidGlow = bgCtx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.6);
+    voidGlow.addColorStop(0, `rgba(40,5,80,${pulse})`);
+    voidGlow.addColorStop(1, 'rgba(0,0,0,0)');
+    bgCtx.fillStyle = voidGlow;
+    bgCtx.fillRect(0, 0, W, H);
+  }
+}
+
+function setBg(presetKey) {
+  bgState.currentType = presetKey;
+  const cfg = BG[presetKey] || BG.outdoor_night;
+
+  if (cfg.type === 'outdoor') initStars();
+  else { bgState.stars = initStars(60); initIndoorParticles(cfg.type); }
+
+  document.getElementById('scanlines').classList.toggle('horror', cfg.scanlines);
+
+  // Update CSS vars via element styles
+  document.getElementById('loc').style.color = cfg.locColor;
+  document.getElementById('spk').style.color = cfg.spkColor;
+  document.getElementById('art').style.filter = `drop-shadow(0 0 24px ${cfg.glow})`;
+}
+
+function bgLoop() {
+  bgState.tick++;
+  drawBackground(bgState.currentType);
+  bgState.animFrame = requestAnimationFrame(bgLoop);
+}
+
+// ═══════════════════════════════════════════
+// STORY DATA
+// ═══════════════════════════════════════════
+
+const scenes = [
+  // 0 — OPENING
+  {
+    id: 0,
+    art: '🌑',
+    bg: 'outdoor_night',
+    loc: 'ป่าชายเมือง — เที่ยงคืน',
+    spk: 'NARRATOR',
+    txt: 'ความมืดปกคลุมทุกอย่าง... มีเพียงแสงจันทร์เสี้ยวเดียวที่ส่องลงมาบนทางดิน และซองจดหมายที่ถูกวางไว้บนก้อนหินมีชื่อว่า... M O O N',
+    choices: [
+      { icon: '📜', label: 'หยิบซองจดหมายขึ้นมา', next: 1 },
+      { icon: '🌲', label: 'มองรอบๆ ป่าก่อน', next: 'forest_look' },
+    ]
+  },
+
+  // forest_look — branch
+  {
+    id: 'forest_look',
+    art: '🌲',
+    bg: 'outdoor_night',
+    loc: 'ชายป่า — มืดมาก',
+    spk: 'NARRATOR',
+    txt: 'ระหว่างต้นไม้ คุณเห็นเงาๆ กำลังเคลื่อนไหวอยู่ไกลๆ เงานั้นดูเหมือนคน... แต่ไม่มีเสียงเดิน และมันหยุดนิ่งพอดีที่คุณมอง',
+    choices: [
+      { icon: '😰', label: 'รีบกลับไปหยิบซองจดหมาย', next: 1 },
+    ]
+  },
+
+  // 1 — LETTER
+  {
+    id: 1,
+    art: '📜',
+    bg: 'outdoor_night',
+    loc: 'ป่าชายเมือง — ริมทาง',
+    spk: 'THE LETTER',
+    txt: '"ถ้าคุณอ่านสิ่งนี้อยู่ แสดงว่าคุณมาถูกที่แล้ว... ปริศนานี้ไม่มีทางหนี มีเพียงทางเดินหน้า ไปหาหอนาฬิกาเก่าทางทิศเหนือ — อย่าหยุด"',
+    choices: [
+      { icon: '🧭', label: 'เดินไปทางทิศเหนือ', next: 2 },
+      { icon: '🔦', label: 'ส่องไฟดูข้างหลังซอง', next: 'letter_back' },
+    ]
+  },
+
+  // letter_back — branch
+  {
+    id: 'letter_back',
+    art: '📜',
+    bg: 'outdoor_night',
+    loc: 'ป่าชายเมือง',
+    spk: 'THE LETTER',
+    txt: 'หลังซองมีรอยประทับขี้ผึ้งรูปดวงจันทร์ ใต้รอยประทับมีตัวเลขเล็กๆ เขียนว่า "12.06" — วันที่ 12 มิถุนายน คือวันนี้เอง',
+    choices: [
+      { icon: '🧭', label: 'เดินไปหาหอนาฬิกา', next: 2 },
+    ]
+  },
+
+  // 2 — CLOCK TOWER (outdoor)
+  {
+    id: 2,
+    art: '🕰️',
+    bg: 'outdoor_night',
+    loc: 'หน้าหอนาฬิกาเก่า — 23:57',
+    spk: 'NARRATOR',
+    txt: 'หอนาฬิกาหินเก่าแก่ตั้งอยู่ท่ามกลางหมอก เข็มนาฬิกากำลังเคลื่อนใกล้เที่ยงคืน บนกำแพงมีภาพวาดเก่าของดวงจันทร์... และประตูบานหนึ่งที่เปิดค้างอยู่',
+    choices: [
+      { icon: '🚪', label: 'เข้าไปในหอนาฬิกา', next: 3 },
+      { icon: '🌙', label: 'มองดูภาพวาดดวงจันทร์', next: 'moon_painting' },
+    ]
+  },
+
+  // moon_painting — branch
+  {
+    id: 'moon_painting',
+    art: '🌕',
+    bg: 'outdoor_night',
+    loc: 'หน้าหอนาฬิกา',
+    spk: 'CARVED INTO STONE',
+    txt: '"เธอเกิดในคืนที่ดวงจันทร์สว่างที่สุด... และในคืนนั้น ทุกความมืดก็กลายเป็นแสง" — ข้อความถูกสลักเป็นภาษาเก่า แต่คุณอ่านได้ทุกคำ',
+    choices: [
+      { icon: '🚪', label: 'เข้าไปในหอนาฬิกา', next: 3 },
+    ]
+  },
+
+  // 3 — INSIDE TOWER (indoor)
+  {
+    id: 3,
+    art: '⚙️',
+    bg: 'indoor_creepy',
+    loc: 'ภายในหอนาฬิกา — ชั้น 1',
+    spk: 'NARRATOR',
+    txt: 'ภายในเย็นผิดปกติ กลิ่นไม้เก่าและขี้ผึ้งลอยอยู่ในอากาศ ระบบเฟืองขนาดใหญ่หมุนอยู่เงียบๆ บนพื้นมีรอยเท้า... ที่ไม่ได้จบที่ไหนสักที่',
+    choices: [
+      { icon: '🪜', label: 'ขึ้นบันไดไปชั้นบน', next: 4 },
+      { icon: '👣', label: 'ตามรอยเท้าไป', next: 'footprints' },
+    ]
+  },
+
+  // footprints — branch
+  {
+    id: 'footprints',
+    art: '👁️',
+    bg: 'indoor_creepy',
+    loc: 'ภายในหอนาฬิกา — มุมมืด',
+    spk: '???',
+    txt: 'รอยเท้าพาคุณไปที่มุมมืด ที่นั่นมีกระจกเก่าบานหนึ่ง ในกระจก... คุณเห็นห้องเดิม แต่ไม่มีตัวคุณอยู่ในภาพสะท้อน',
+    choices: [
+      { icon: '😱', label: 'วิ่งขึ้นบันไดทันที', next: 4 },
+    ]
+  },
+
+  // 4 — TOWER TOP (indoor)
+  {
+    id: 4,
+    art: '🔔',
+    bg: 'indoor_creepy',
+    loc: 'ยอดหอนาฬิกา — 23:59',
+    spk: 'THE BELL',
+    txt: 'ระฆังขนาดใหญ่แขวนอยู่ตรงกลาง บนระฆังมีกุญแจห้อยอยู่ และกระดาษแผ่นหนึ่งว่า "กุญแจนี้เปิดอะไรก็ไม่รู้... แต่บางทีไม่ใช่ประตูที่ต้องการกุญแจ"',
+    choices: [
+      { icon: '🗝️', label: 'หยิบกุญแจมา', next: 5 },
+      { icon: '⏰', label: 'รอให้นาฬิกาตี 12', next: 'bell_midnight' },
+    ]
+  },
+
+  // bell_midnight — branch
+  {
+    id: 'bell_midnight',
+    art: '🔔',
+    bg: 'indoor_creepy',
+    loc: 'ยอดหอนาฬิกา — เที่ยงคืนพอดี',
+    spk: 'THE BELL',
+    txt: 'ระฆังดังขึ้น 12 ครั้ง... เสียงสั่นสะเทือนทั้งร่าง และเมื่อเสียงสุดท้ายดับลง กุญแจก็หล่นลงมาแทบเท้าคุณเอง',
+    choices: [
+      { icon: '🗝️', label: 'หยิบกุญแจขึ้นมา', next: 5 },
+    ]
+  },
+
+  // 5 — UNDERGROUND PASSAGE
+  {
+    id: 5,
+    art: '🗝️',
+    bg: 'underground',
+    loc: 'ทางลับใต้หอนาฬิกา',
+    spk: 'NARRATOR',
+    txt: 'กุญแจพาคุณไปยังช่องลับใต้พื้น ทางเดินหินแคบๆ ส่องด้วยแสงเรืองรองสีน้ำเงินอ่อนๆ ที่ผนังมีตัวอักษรสลักไว้นับร้อยชื่อ... ทุกชื่อเป็นวันเกิด',
+    choices: [
+      { icon: '🔎', label: 'หาชื่อ Moon ในผนัง', next: 6 },
+      { icon: '🚶', label: 'เดินต่อไปข้างหน้า', next: 7 },
+    ]
+  },
+
+  // 6 — NAME ON WALL
+  {
+    id: 6,
+    art: '✨',
+    bg: 'underground',
+    loc: 'ทางลับ — ผนังชื่อ',
+    spk: 'THE WALL',
+    txt: 'ในบรรดาชื่อทั้งหมด คุณเห็น "MOON — 12 มิถุนายน" สลักด้วยตัวอักษรสีทอง และรอบๆ ชื่อนั้น มีรูปดาวและดวงจันทร์เล็กๆ แกะสลักล้อมรอบอยู่',
+    choices: [
+      { icon: '🚶', label: 'เดินต่อไปยังห้องสุดท้าย', next: 7 },
+    ]
+  },
+
+  // 7 — SECRET ROOM (warm)
+  {
+    id: 7,
+    art: '🕯️',
+    bg: 'indoor_warm',
+    loc: 'ห้องลับ — ปลายทาง',
+    spk: '???',
+    txt: 'ห้องเล็กๆ สว่างด้วยแสงเทียนอบอุ่น ไม่มีปริศนา ไม่มีกับดัก ไม่มีเงาน่ากลัว... มีเพียงโต๊ะกลมใบหนึ่ง และสิ่งที่วางอยู่บนนั้น',
+    choices: [
+      { icon: '🎂', label: 'เดินเข้าไปดู', next: 8 },
+    ]
+  },
+
+  // 8 — THE ANSWER
+  {
+    id: 8,
+    art: '🎂',
+    bg: 'indoor_warm',
+    loc: 'ห้องลับ — ความจริง',
+    spk: 'THE MYSTERY',
+    txt: 'เค้กวันเกิด เทียนสีม่วงจำนวนหนึ่ง และข้อความบนกระดาษว่า "ปริศนาทั้งหมดนี้ไม่ได้เป็นความน่ากลัว... มันเป็นวิธีที่เราบอกว่า: วันนี้สำคัญมาก"',
+    choices: [
+      { icon: '🎉', label: 'เป่าเทียนวันเกิด', next: 'end' },
+    ]
+  },
+
+  // VOID branch — if somehow reaching void
+  {
+    id: 'void_scene',
+    art: '🌑',
+    bg: 'void',
+    loc: 'ความว่างเปล่า',
+    spk: '...',
+    txt: '...',
+    choices: [
+      { icon: '↩', label: 'กลับมา', next: 0 },
+    ]
+  },
+];
+
+const sceneMap = {};
+scenes.forEach(s => { sceneMap[s.id] = s; });
+
+// ═══════════════════════════════════════════
+// ENGINE
+// ═══════════════════════════════════════════
+
+let cur = 0;
+let typeTimer = null;
+
+const TOTAL_STEPS = 8;
+function getProg() {
+  const order = [0,'forest_look',1,'letter_back',2,'moon_painting',3,'footprints',4,'bell_midnight',5,6,7,8];
+  const idx = order.indexOf(cur);
+  return Math.max(0, Math.min(TOTAL_STEPS, Math.floor((idx / order.length) * TOTAL_STEPS)));
+}
+
+function renderProg() {
+  const p = document.getElementById('prog');
+  const done = getProg();
+  p.innerHTML = '';
+  for (let i = 0; i < TOTAL_STEPS; i++) {
+    const d = document.createElement('div');
+    d.className = 'vn-dot' + (i < done ? ' done' : i === done ? ' active' : '');
+    p.appendChild(d);
+  }
+}
+
+function typeText(el, text, cb) {
+  if (typeTimer) clearInterval(typeTimer);
+  el.innerHTML = '';
+  let i = 0;
+  typeTimer = setInterval(() => {
+    if (i < text.length) {
+      el.innerHTML = text.slice(0, ++i) + '<span class="vn-cursor"></span>';
+    } else {
+      el.innerHTML = text;
+      clearInterval(typeTimer);
+      typeTimer = null;
+      if (cb) cb();
+    }
+  }, 20);
+}
+
+function render() {
+  const s = sceneMap[cur];
+  if (!s) return;
+
+  const art = document.getElementById('art');
+  const loc = document.getElementById('loc');
+  const spk = document.getElementById('spk');
+  const txt = document.getElementById('txt');
+  const ch = document.getElementById('choices');
+  const scene = document.getElementById('scene');
+
+  // Fade in
+  scene.classList.remove('fade-in');
+  void scene.offsetWidth;
+  scene.classList.add('fade-in');
+
+  // Update background
+  setBg(s.bg || 'outdoor_night');
+
+  art.textContent = s.art;
+  loc.textContent = s.loc;
+  spk.textContent = s.spk;
+  ch.innerHTML = '';
+  renderProg();
+
+  // Art flicker on horror scenes
+  art.classList.remove('flicker');
+  if (s.bg === 'indoor_creepy' || s.bg === 'void') {
+    setTimeout(() => art.classList.add('flicker'), 300);
+  }
+
+  typeText(txt, s.txt, () => {
+    ch.innerHTML = '';
+    s.choices.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'vn-choice fade-in';
+      btn.innerHTML = `<span class="vn-choice-icon">${c.icon}</span>${c.label}`;
+      btn.onclick = () => go(c.next);
+      ch.appendChild(btn);
+    });
+  });
+}
+
+function go(next) {
+  if (next === 'end') { showEnd(); return; }
+  cur = next;
+  render();
+}
+
+// ═══════════════════════════════════════════
+// ENDING
+// ═══════════════════════════════════════════
+
+function showEnd() {
+  document.getElementById('scene').style.display = 'none';
+  document.getElementById('choices').style.display = 'none';
+  document.getElementById('prog').style.display = 'none';
+  document.getElementById('scanlines').classList.remove('horror');
+
+  setBg('outdoor_night'); // Back to night sky for ending
+
+  const cel = document.getElementById('cel');
+  cel.classList.add('show', 'fade-in');
+  fireConfetti();
+}
+
+function fireConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cols = ['#a78bfa','#7c3aed','#ede9fe','#c4b5fd','#f9a8d4','#fbbf24','#818cf8','#ffffff'];
+  const ps = Array.from({length: 160}, () => ({
+    x: Math.random() * W, y: -15 - Math.random() * 140,
+    vx: (Math.random() - 0.5) * 2.5, vy: 1.8 + Math.random() * 3,
+    col: cols[Math.floor(Math.random() * cols.length)],
+    w: 5 + Math.random() * 7, h: 3 + Math.random() * 3,
+    r: Math.random() * Math.PI * 2, vr: (Math.random() - 0.5) * 0.14,
+  }));
+  let f = 0;
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ps.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.r);
+      ctx.fillStyle = p.col;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    if (++f < 220) requestAnimationFrame(draw);
+    else ctx.clearRect(0, 0, W, H);
+  }
+  draw();
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+
+function init() {
+  cur = 0;
+  document.getElementById('scene').style.display = 'flex';
+  document.getElementById('choices').style.display = 'flex';
+  document.getElementById('prog').style.display = 'flex';
+  const cel = document.getElementById('cel');
+  cel.classList.remove('show', 'fade-in');
+  initStars(180);
+  render();
+}
+
+resizeCanvases();
+window.addEventListener('resize', () => { resizeCanvases(); });
+initStars(180);
+bgLoop();
+init();
+</script>
+</body>
+</html>
